@@ -1,0 +1,5 @@
+keyStore=
+keyStorePassword=
+databaseUrl=jdbc:mysql://localhost:3306/DatabaseName
+databaseUsername=
+databasePassword=
