@@ -8,10 +8,54 @@ import cf.rafl.http.core.HttpResponse;
 import java.io.IOException;
 import java.sql.SQLException;
 
-public class VerifyUserToken extends HttpHandler
+public class ControllerAPI extends HttpHandler
 {
+
+    HttpRequest httpRequest;
+
     @Override
     protected void handlePOST(HttpRequest httpRequest) throws IOException
+    {
+        this.httpRequest = httpRequest;
+        String type = httpRequest.getField("type");
+        if(type == null)
+        {
+            exchange.send(
+                    new HttpResponse.Builder(HttpResponse.StatusCode.BadRequest)
+                            .setContent("specify type field")
+                            .build()
+            );
+            return;
+        }
+
+        //  reflection!
+
+        if(type.equals("verifyUserToken"))
+            verifyUserToken();
+        else
+            invalidType();
+
+
+
+    }
+
+    @Override
+    protected void handleGET(HttpRequest httpRequest) throws IOException
+    {
+        handleUNKNOWN(httpRequest);
+    }
+
+    @Override
+    protected void handleUNKNOWN(HttpRequest httpRequest) throws IOException
+    {
+        exchange.send(
+                new HttpResponse.Builder(HttpResponse.StatusCode.BadRequest)
+                        .setContent("Method not allowed")
+                        .build()
+        );
+    }
+
+    private void verifyUserToken() throws IOException
     {
         String verificationToken = httpRequest.getContent();
         try
@@ -41,22 +85,14 @@ public class VerifyUserToken extends HttpHandler
                             .build()
             );
         }
-
     }
 
-    @Override
-    protected void handleGET(HttpRequest httpRequest) throws IOException
-    {
-        handleUNKNOWN(httpRequest);
-    }
-
-    @Override
-    protected void handleUNKNOWN(HttpRequest httpRequest) throws IOException
+    private void invalidType() throws IOException
     {
         exchange.send(
                 new HttpResponse.Builder(HttpResponse.StatusCode.BadRequest)
-                        .setContent("Method not allowed")
-                        .build()
+                .setContent("no such type")
+                .build()
         );
     }
 }

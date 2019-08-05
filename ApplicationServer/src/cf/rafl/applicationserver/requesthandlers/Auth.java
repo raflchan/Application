@@ -112,10 +112,11 @@ public class Auth extends HttpHandler
     @Override
     protected void handleUNKNOWN(HttpRequest httpRequest) throws IOException
     {
-        HttpResponse response = new HttpResponse.Builder(HttpResponse.StatusCode.BadRequest)
-                .setContent("Method not allowed")
-                .build();
-        exchange.send(response);
+        exchange.send(
+                new HttpResponse.Builder(HttpResponse.StatusCode.BadRequest)
+                        .setContent("Method not allowed")
+                        .build()
+        );
     }
 
     private void internalServerError() throws IOException

@@ -68,4 +68,24 @@ public class UtilDBRequest
         return statement.executeUpdate() == 1;
     }
 
+    public static boolean verificationTokenExists(String verificationToken) throws SQLException
+    {
+        PreparedStatement statement =
+                db.preparedStatement("DELETE FROM verification_tokens WHERE verification_tokens.Token = ?");
+        statement.setString(1, verificationToken);
+        int res = statement.executeUpdate();
+        return res == 1;
+    }
+
+    public static boolean createVerificationToken(String token, String username) throws SQLException
+    {
+        PreparedStatement statement =
+                db.preparedStatement("INSERT INTO verification_tokens (Token, FK_User, Created) = (?, ?, ?)");
+        statement.setString(1, token);
+        statement.setString(2, username);
+        statement.setTimestamp(3, new Timestamp(System.currentTimeMillis()));
+
+        return statement.executeUpdate() == 1;
+    }
+
 }
