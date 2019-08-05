@@ -8,46 +8,11 @@
 
 #include <limits.h>
 
-#include "bluetooth.ino"
 
-#if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
-#error Bluetooth is not enabled! Please run `make menuconfig` to and enable it
-#endif
+#include "bluetooth.h"
+#include "debug.h"
+#include "defines.h"
 
-#define VERSION (0x6)
-
-#define LED 2
-
-#define MAX_CONNECTION_DURATION 5000
-#define MAX_MESSAGE_SIZE 10
-
-#define BT_MAX_CONNECTION_DURATION INT_MAX
-#define BT_MAX_MESSAGE_SIZE 50
-#define BT_WAIT_BETWEEN_WRITES 20
-
-#define MAX_WAIT_FOR_WIFI 5000
-
-#define TOKEN_LENGTH 32
-
-#define DEBUG
-
-#ifdef DEBUG
-    #define PRINT(s) (Serial.print(s))
-    #define PRINTLN(s) (Serial.println(s))
-#else
-    #define PRINT(s) (0)
-    #define PRINTLN(s) (0)
-#endif
-
-#define ADDRESS_VERSION         0
-#define ADDRESS_IS_CONFIGURED   (ADDRESS_VERSION + 1)
-#define ADDRESS_TOKEN_START     (ADDRESS_IS_CONFIGURED + 1)
-/*       */
-#define ADDRESS_TOKEN_END       (ADDRESS_TOKEN_START + TOKEN_LENGTH - 1)
-#define EEPROM_SIZE             ADDRESS_TOKEN_END + 1
-
-#define MAX_SSID_LENGTH 31
-#define MAX_PASSWORD_LENGHT 63
 
 const char serverAddress[] = "app.rafl.cf";
 char ssid[MAX_SSID_LENGTH + 1] = {'\0'};
@@ -66,13 +31,9 @@ bool verifyUserToken(const char* tokn);
 void registerBoard(const char* tokn);
 
 
-//  BT stuff
-bool readLine(BluetoothSerial &SerialBT, char* message, int maxSize, int* size  = nullptr);
-bool writeLine(BluetoothSerial &SerialBT, const char* message);
-bool giveTokn(BluetoothSerial &SerialBT, char* token);
-bool giveString(BluetoothSerial &SerialBT, const char* request, char* receive, size_t size);
 
 
+bool connectWiFi();
 
 void update();
 void connect();
@@ -90,7 +51,6 @@ void initializeSPIFFS();
 void loadWiFiCredentials();
 void loadCert();
 
-bool connectWiFi();
 void initializeWiFi();
 
 void initializeHttpsClient();
@@ -311,83 +271,7 @@ void configFirstTime()
 }
 
 
-bool readLine(BluetoothSerial &SerialBT, char* message, int maxSize, int* size)
-{
-    int messageSize;
-    char c;
 
-    for(messageSize = 0; messageSize < maxSize && SerialBT.available(); messageSize++)
-    {
-        if(!SerialBT.hasClient())
-            return false;
-        // if(messageSize > maxSize)
-        // {
-        //     PRINTLN("BT: stopped reading message, because too long");
-        //     message[0] = '\0';
-        //     return true;
-        // }
-        c = (char) SerialBT.read();
-        if(c == '\n' || c == '\r')
-            break;
-        message[messageSize] = c;
-    }
-    
-    if(size != nullptr)
-        *size = messageSize++;
-    message[messageSize] = '\0';
-
-    PRINT("Received message: ");
-    PRINTLN(message);
-
-    return true;
-}
-
-bool writeLine(BluetoothSerial &SerialBT, const char* message)
-{
-    if(!SerialBT.hasClient())
-        return false;
-    size_t size = strlen(message);
-    SerialBT.write((uint8_t*) message, size);
-    SerialBT.write('\n');
-    delay(20);
-
-    return true;
-}
-
-bool giveString(BluetoothSerial &SerialBT, const char* request, char* receive, size_t size)
-{
-    PRINT("serving: ");
-    PRINTLN(request);
-
-    SerialBT.flush();
-    writeLine(SerialBT, request);
-    while(!SerialBT.available())
-    {
-        if(!SerialBT.hasClient())
-            return false;
-        delay(20);
-    }
-    if(!readLine(SerialBT, receive, size))
-        return false;
-
-    return true;
-}
-
-bool giveTokn(BluetoothSerial &SerialBT, char* token)
-{
-    bool success = false;
-    while(!success)
-    {
-        if(!giveString(SerialBT, "GIVE TOKN", token, TOKEN_LENGTH))
-            return false;
-        
-        //  verify tokn
-        success = (strlen(token) == TOKEN_LENGTH);
-        if(!success)
-            PRINTLN("BT: invalid token format, retrying");
-    }
-    return true;
-}
 
 bool connectWiFi()
 {
@@ -458,7 +342,6 @@ void userSetup()
     SerialBT.begin("ESP32");
 
     startUserSetup:
-    PRINTLN(ESP.getFreeHeap());
 
     PRINT("Waiting for BT connection to setup device");
 
