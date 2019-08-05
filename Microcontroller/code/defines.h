@@ -24,4 +24,12 @@
 #define MAX_SSID_LENGTH 31
 #define MAX_PASSWORD_LENGHT 63
 
+#ifdef DEBUG
+    #define PRINT(s) (Serial.print(s))
+    #define PRINTLN(s) (Serial.println(s))
+#else
+    #define PRINT(s) (0)
+    #define PRINTLN(s) (0)
+#endif
+
 #endif

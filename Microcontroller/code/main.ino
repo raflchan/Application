@@ -10,7 +10,6 @@
 
 
 #include "bluetooth.h"
-#include "debug.h"
 #include "defines.h"
 
 

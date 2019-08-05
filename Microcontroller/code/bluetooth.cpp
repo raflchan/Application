@@ -1,6 +1,5 @@
 #include "bluetooth.h"
 
-#include "debug.h"
 #include "defines.h"
 
 bool readLine(BluetoothSerial &SerialBT, char* message, int maxSize, int* size)
