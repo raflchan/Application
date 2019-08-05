@@ -26,8 +26,8 @@ WiFiServer server(69);
 
 
 //  auth stuff
-bool verifyUserToken(const char* tokn);
-void registerBoard(const char* tokn);
+bool verifyUserToken(const char* tokn, char* username);
+void registerBoard(const char* tokn, const char* username);
 
 
 
@@ -303,7 +303,7 @@ bool connectWiFi()
     return false;
 }
 
-bool verifyUserToken(char* tokn)
+bool verifyUserToken(const char* tokn, char* username)
 {
     initializeHttpsClient();
     httpsClient->addHeader("Type", "verifyUserToken");
@@ -321,14 +321,22 @@ bool verifyUserToken(char* tokn)
 
     PRINTLN("Connected to server!\nContent:");
     PRINTLN(httpsClient->getString());
+    const char* content = httpsClient->getString().c_str();
+
+    //  check for server error
+    if(strlen(content) <= MAX_USERNAME_LENGTH)
+        strcpy(username, content);
 
     return true;
 
 }
 
-void registerBoard(char* tokn)
+void registerBoard(const char* tokn, const char* userName)
 {
     PRINTLN("this is where the board registers itself :)");
+    initializeHttpsClient();
+    httpsClient->addHeader("Token", token);
+    httpsClient->addHeader("Type", "registerBoard");
 }
 
 void userSetup()
@@ -385,8 +393,8 @@ void userSetup()
                 PRINTLN("INVALID CRED");
             }
         }
-
-        while(!verifyUserToken(token))
+        char username[MAX_USERNAME_LENGTH + 1];
+        while(!verifyUserToken(token, username))
         {
             writeLine(SerialBT, "INFO INVALID TOKN");
             PRINTLN("INVALID TOKN");
@@ -399,7 +407,7 @@ void userSetup()
             PRINT("Received TOKN: ");
             PRINTLN(token);
         }
-        registerBoard(token);
+        registerBoard(token, username);
 
         writeLine(SerialBT, "INFO SUCCESSFULL SETUP");
         SerialBT.end();
