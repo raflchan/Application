@@ -4,6 +4,7 @@
 
 bool readLine(BluetoothSerial &SerialBT, char* message, int maxSize, int* size)
 {
+    //  todo    timeouts
     int messageSize;
     char c;
 
