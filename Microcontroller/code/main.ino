@@ -8,6 +8,8 @@
 
 #include <limits.h>
 
+#include "bluetooth.ino"
+
 #if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
 #error Bluetooth is not enabled! Please run `make menuconfig` to and enable it
 #endif
@@ -25,7 +27,7 @@
 
 #define MAX_WAIT_FOR_WIFI 5000
 
-#define TOKEN_SIZE 32
+#define TOKEN_LENGTH 32
 
 #define DEBUG
 
@@ -41,29 +43,36 @@
 #define ADDRESS_IS_CONFIGURED   (ADDRESS_VERSION + 1)
 #define ADDRESS_TOKEN_START     (ADDRESS_IS_CONFIGURED + 1)
 /*       */
-#define ADDRESS_TOKEN_END       (ADDRESS_TOKEN_START + TOKEN_SIZE - 1)
+#define ADDRESS_TOKEN_END       (ADDRESS_TOKEN_START + TOKEN_LENGTH - 1)
 #define EEPROM_SIZE             ADDRESS_TOKEN_END + 1
 
-const char serverAddress[] = "https://app.rafl.cf";
-char *ssid;
-char *password;
+#define MAX_SSID_LENGTH 31
+#define MAX_PASSWORD_LENGHT 63
 
-char* token;
+const char serverAddress[] = "app.rafl.cf";
+char ssid[MAX_SSID_LENGTH + 1] = {'\0'};
+char password[MAX_PASSWORD_LENGHT + 1] = {'\0'};
+
+char token[TOKEN_LENGTH + 1] = {'\0'};
 
 char *cert;
+
+HTTPClient* httpsClient;
 WiFiServer server(69);
 
+
 //  auth stuff
-bool verifyUserToken(char* tokn);
-void registerBoard(char* tokn);
+bool verifyUserToken(const char* tokn);
+void registerBoard(const char* tokn);
 
 
 //  BT stuff
 bool readLine(BluetoothSerial &SerialBT, char* message, int maxSize, int* size  = nullptr);
-bool writeLine(BluetoothSerial &SerialBT, char* message);
-char* giveTokn(BluetoothSerial &SerialBT);
-char* giveString(BluetoothSerial &SerialBT, char* request);
-bool testWiFi();
+bool writeLine(BluetoothSerial &SerialBT, const char* message);
+bool giveTokn(BluetoothSerial &SerialBT, char* token);
+bool giveString(BluetoothSerial &SerialBT, const char* request, char* receive, size_t size);
+
+
 
 void update();
 void connect();
@@ -75,13 +84,17 @@ void configFirstTime();
 void userSetup();
 
 void initializeEEPROM();
-char* generateToken();
+void generateToken(char* token);
 
 void initializeSPIFFS();
 void loadWiFiCredentials();
 void loadCert();
 
-void initializeWiFi(); 
+bool connectWiFi();
+void initializeWiFi();
+
+void initializeHttpsClient();
+int POST(const char* payload);
 
 void fatal();
 
@@ -237,6 +250,45 @@ bool isConfigured()
     return false;
 }
 
+int POST(const char* payload)
+{
+    int status = httpsClient->POST(payload);
+    httpsClient->end();
+    return status;
+}
+
+void initializeHttpsClient()
+{
+    PRINTLN("Initializing HTTPSClient");
+
+    static bool initialized = false;
+
+    if(!initialized)
+    {
+        PRINTLN("Initializing SPIFFS...");
+        if(!SPIFFS.begin())
+        {
+            PRINTLN("Couldn't initialize SPIFFS!");
+            fatal();
+        }
+        loadCert();
+        SPIFFS.end();
+        httpsClient = new HTTPClient();
+        initialized = true;
+    }
+    
+    httpsClient->begin(serverAddress, 443, "/controllerapi", cert);
+    if(!httpsClient)
+    {
+        PRINTLN("COULDN'T CONNECT TO SERVER");
+        fatal();
+    }
+
+    PRINTLN("Connected to Server");
+
+
+}
+
 void configFirstTime()
 {
     EEPROM.begin(EEPROM_SIZE);
@@ -248,8 +300,8 @@ void configFirstTime()
     EEPROM.write(ADDRESS_VERSION, VERSION);
     PRINTLN("EEPROM wiped!");
 
-    token = generateToken();
-    EEPROM.writeBytes(ADDRESS_TOKEN_START, token, TOKEN_SIZE);
+    generateToken(token);
+    EEPROM.writeBytes(ADDRESS_TOKEN_START, token, TOKEN_LENGTH);
 
     userSetup();
 
@@ -258,24 +310,26 @@ void configFirstTime()
     EEPROM.end();
 }
 
+
 bool readLine(BluetoothSerial &SerialBT, char* message, int maxSize, int* size)
 {
-    int messageSize = 0;
+    int messageSize;
     char c;
-    while(SerialBT.available())
+
+    for(messageSize = 0; messageSize < maxSize && SerialBT.available(); messageSize++)
     {
         if(!SerialBT.hasClient())
-        return false;
-        if(messageSize >= maxSize)
-        {
-            PRINTLN("BT: stopped reading message, because too long");
-            message[0] = '\0';
-            return true;
-        }
+            return false;
+        // if(messageSize > maxSize)
+        // {
+        //     PRINTLN("BT: stopped reading message, because too long");
+        //     message[0] = '\0';
+        //     return true;
+        // }
         c = (char) SerialBT.read();
         if(c == '\n' || c == '\r')
             break;
-        message[messageSize++] = c;
+        message[messageSize] = c;
     }
     
     if(size != nullptr)
@@ -288,66 +342,56 @@ bool readLine(BluetoothSerial &SerialBT, char* message, int maxSize, int* size)
     return true;
 }
 
-bool writeLine(BluetoothSerial &SerialBT, char* message)
+bool writeLine(BluetoothSerial &SerialBT, const char* message)
 {
     if(!SerialBT.hasClient())
         return false;
     size_t size = strlen(message);
     SerialBT.write((uint8_t*) message, size);
     SerialBT.write('\n');
+    delay(20);
 
     return true;
 }
 
-char* giveString(BluetoothSerial &SerialBT, char* request)
+bool giveString(BluetoothSerial &SerialBT, const char* request, char* receive, size_t size)
 {
     PRINT("serving: ");
     PRINTLN(request);
-
 
     SerialBT.flush();
     writeLine(SerialBT, request);
     while(!SerialBT.available())
     {
         if(!SerialBT.hasClient())
-            return nullptr;
+            return false;
         delay(20);
     }
-    char* receive = (char*) malloc(BT_MAX_MESSAGE_SIZE + 1);
-    if(!readLine(SerialBT, receive, BT_MAX_MESSAGE_SIZE))
-    {
-        free(receive);
-        return nullptr;
-    }
-    receive = (char*) realloc(receive, strlen(receive) + 1);
+    if(!readLine(SerialBT, receive, size))
+        return false;
 
-    return receive;
+    return true;
 }
 
-char* giveTokn(BluetoothSerial &SerialBT)
+bool giveTokn(BluetoothSerial &SerialBT, char* token)
 {
     bool success = false;
-    char* tokn = nullptr;
-    int size;
     while(!success)
     {
-        if(tokn != nullptr)
-            free(tokn);
-        tokn = giveString(SerialBT, "GIVE TOKN");
-        if(tokn == nullptr)
-            return nullptr;
+        if(!giveString(SerialBT, "GIVE TOKN", token, TOKEN_LENGTH))
+            return false;
         
         //  verify tokn
-        success = (strlen(tokn) == TOKEN_SIZE);
+        success = (strlen(token) == TOKEN_LENGTH);
         if(!success)
             PRINTLN("BT: invalid token format, retrying");
     }
-    return tokn;
+    return true;
 }
 
-bool testWiFi()
+bool connectWiFi()
 {
-    PRINTLN("test wifi");
+    PRINTLN("connectWiFi:");
 
     for(int i = 0; i < 2; i++)
     {
@@ -364,67 +408,39 @@ bool testWiFi()
             delay(500);
             PRINT(".");
         }
+        PRINTLN("");
         if(WiFi.status() == WL_CONNECTED)
         {
             PRINT("\nConnected, IP address: ");
             PRINTLN(WiFi.localIP());
-            // WiFi.disconnect();
             return true;
         }
-
     }
+    WiFi.disconnect();
     return false;
 }
 
 bool verifyUserToken(char* tokn)
 {
-    PRINTLN("Initializing SPIFFS...");
-    if(!SPIFFS.begin())
+    initializeHttpsClient();
+    httpsClient->addHeader("Type", "verifyUserToken");
+    int statusCode = POST(tokn);
+
+    if(statusCode != HTTP_CODE_OK)
     {
-        PRINTLN("Couldn't initialize SPIFFS!");
-        fatal();
+        PRINT("Couldn't establish connection with server!\nStatus Code: ");
+        PRINT(statusCode);
+        PRINT(" (");
+        PRINT(httpsClient->errorToString(statusCode));
+        PRINTLN(")");
+        return false;
     }
-    loadCert();
-    SPIFFS.end();
-    WiFiClientSecure *https = new WiFiClientSecure();;
 
-    bool ok = false;
+    PRINTLN("Connected to server!\nContent:");
+    PRINTLN(httpsClient->getString());
 
-    if(https)
-    {
-        https->setCACert(cert);
-        {
-            HTTPClient client;
-            
-            if(client.begin(*https, "https://app.rafl.cf/verifyUserToken"))
-            {
-                client.addHeader("Cookie", token);
-                int statusCode = client.POST((uint8_t*) tokn, strlen(tokn));
+    return true;
 
-                if(statusCode == HTTP_CODE_OK)
-                {
-                    PRINTLN("Connected to server!\nContent:");
-                    PRINTLN(client.getString());
-                    ok = true;
-                }
-                else
-                {
-                    PRINT("Couldn't establish connection with server!\nStatus Code: ");
-                    PRINT(statusCode);
-                    PRINT(" (");
-                    PRINT(client.errorToString(statusCode));
-                    PRINTLN(")");
-                }
-            }
-            else
-                PRINTLN("Client couldn't establish the connection???");
-        }
-        delete https;
-    }
-    else
-        PRINTLN("WiFiClientSecure not initialized!");
-
-    return ok;
 }
 
 void registerBoard(char* tokn)
@@ -442,6 +458,7 @@ void userSetup()
     SerialBT.begin("ESP32");
 
     startUserSetup:
+    PRINTLN(ESP.getFreeHeap());
 
     PRINT("Waiting for BT connection to setup device");
 
@@ -456,20 +473,19 @@ void userSetup()
     
     while(SerialBT.hasClient())
     {
-        char* tokn = giveTokn(SerialBT);
-        
-        if(tokn == nullptr)
+        if(!giveTokn(SerialBT, token))
         {
             PRINTLN("BT: Device disconnected during setup, going back to start of userSetup...");
             goto startUserSetup;
         }
         PRINT("Received TOKN: ");
-        PRINTLN(tokn);
+        PRINTLN(token);
         while(SerialBT.hasClient())
         {
-            ssid = giveString(SerialBT, "GIVE SSID");
-            password = giveString(SerialBT, "GIVE PASS");
-            if(ssid == nullptr || password == nullptr)
+            if(
+                !giveString(SerialBT, "GIVE SSID", ssid, MAX_SSID_LENGTH) ||
+                !giveString(SerialBT, "GIVE PASS", password, MAX_PASSWORD_LENGHT)
+            )
             {
                 PRINTLN("BT: Device disconnected during setup, going back to start of userSetup...");
                 goto startUserSetup;
@@ -479,23 +495,32 @@ void userSetup()
             PRINT("Received PASS: ");
             PRINTLN(password);
 
-            if(testWiFi())
+            if(connectWiFi())
                 break;
             else
+            {
                 writeLine(SerialBT, "INFO INVALID CRED");
+                PRINTLN("INVALID CRED");
+            }
         }
 
-        if(!verifyUserToken(tokn))
+        while(!verifyUserToken(token))
         {
             writeLine(SerialBT, "INFO INVALID TOKN");
-            WiFi.disconnect();
-            goto startUserSetup;
+            PRINTLN("INVALID TOKN");
+            if(!giveTokn(SerialBT, token))
+            {
+                PRINTLN("BT: Device disconnected during setup, going back to start of userSetup...");
+                WiFi.disconnect();
+                goto startUserSetup;
+            }
+            PRINT("Received TOKN: ");
+            PRINTLN(token);
         }
-        registerBoard(tokn);
+        registerBoard(token);
 
         writeLine(SerialBT, "INFO SUCCESSFULL SETUP");
         SerialBT.end();
-        free(tokn);
     }
     PRINTLN("Device disconnected!");
 
@@ -515,11 +540,9 @@ void initializeEEPROM()
     PRINTLN("Initializing EEPROM...");
 
     EEPROM.begin(EEPROM_SIZE);
-    char loadedToken[TOKEN_SIZE + 1];
     //  load in the token 
-    for(int i = 0; i < TOKEN_SIZE; i++)
-        loadedToken[i] = (char) EEPROM.read(i + ADDRESS_TOKEN_START);
-    token = loadedToken;
+    for(int i = 0; i < TOKEN_LENGTH; i++)
+        token[i] = (char) EEPROM.read(i + ADDRESS_TOKEN_START);
     EEPROM.end();
 
     PRINTLN("EEPROM initialized");
@@ -527,7 +550,7 @@ void initializeEEPROM()
 }
 
 //  doesn't commit the change!
-char* generateToken()
+void generateToken(char* token)
 {
     PRINTLN("Generating new Token...");
     srand(esp_random());
@@ -536,14 +559,10 @@ char* generateToken()
 
     for(tableLength = 0; table[tableLength] != '\0'; tableLength++);
 
-    char generatedToken[TOKEN_SIZE + 1] = {'\0'};
-
-    for(int i = 0; i < TOKEN_SIZE; i++)
-        generatedToken[i] = table[(rand() % tableLength)];
+    for(int i = 0; i < TOKEN_LENGTH; i++)
+        token[i] = table[(rand() % tableLength)];
     PRINT("Generated new Token: ");
-    PRINTLN(generatedToken);
-
-    return generatedToken;
+    PRINTLN(token);
 }
 
 void initializeSPIFFS()
@@ -564,6 +583,12 @@ void initializeSPIFFS()
 void loadCert()
 {
     PRINTLN("Loading Cert...");
+    static bool loaded = false;
+    if(loaded)
+    {
+        PRINTLN("Cert already loaded!");
+        return;
+    }
     File file = SPIFFS.open("/cert.cer");
     if(!file)
     {
@@ -585,7 +610,7 @@ void loadCert()
     // PRINTLN("Certificate:");
     // PRINTLN(cert);
     PRINTLN("Loaded Cert");
-
+    loaded = true;
 
 }
 
@@ -620,8 +645,6 @@ void loadWiFiCredentials()
             int j;
             long ssidSize = i - 1;
             long passwordSize = loginSize - ssidSize;
-            ssid = (char*) malloc(ssidSize + 1);
-            password = (char*) malloc(passwordSize + 1);
             for(j = 0; j < i - 1; j++)
                 *(ssid + j) = *(login + j);
             *(ssid + ssidSize) = '\0';
@@ -645,29 +668,8 @@ void loadWiFiCredentials()
 
 void initializeWiFi()
 {
-    for(int i = 0; i < 2; i++)
-    {
-        WiFi.begin(ssid, password);
-
-        PRINT("Connecting to Wifi");
-        long start = millis();
-        while(WiFi.status() != WL_CONNECTED)
-        {
-            if(millis() >= (start + MAX_WAIT_FOR_WIFI))
-            {
-                PRINTLN("\nCouldn't connect to Wifi!");
-                break;
-            }
-            delay(500);
-            PRINT(".");
-        }
-        if(WiFi.status() == WL_CONNECTED)
-        {
-            PRINT("\nConnected, IP address: ");
-            PRINTLN(WiFi.localIP());
-        }
-    }
-    fatal();
+    if(!connectWiFi)
+        fatal();
 }
 
 void fatal()
