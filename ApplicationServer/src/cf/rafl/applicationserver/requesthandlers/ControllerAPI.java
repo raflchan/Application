@@ -1,15 +1,21 @@
 package cf.rafl.applicationserver.requesthandlers;
 
+import cf.rafl.applicationserver.util.Responses;
 import cf.rafl.applicationserver.util.UtilDBRequest;
 import cf.rafl.http.core.HttpHandler;
 import cf.rafl.http.core.HttpRequest;
 import cf.rafl.http.core.HttpResponse;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.sql.SQLException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class ControllerAPI extends HttpHandler
 {
+    private static Logger logger = Logger.getLogger(ControllerAPI.class.getName());
 
     HttpRequest httpRequest;
 
@@ -28,14 +34,22 @@ public class ControllerAPI extends HttpHandler
             return;
         }
 
-        //  reflection!
+        try
+        {
+            Method method = this.getClass().getDeclaredMethod(type);
+            method.invoke(this);
 
-        if(type.equals("verifyUserToken"))
-            verifyUserToken();
-        else
-            invalidType();
+        } catch (NoSuchMethodException e)
+        {
+            Responses.invalidType(exchange);
+            return;
 
-
+        } catch (IllegalAccessException | InvocationTargetException e)
+        {
+            Responses.internalServerError(exchange);
+            logger.log(Level.WARNING, "", e);
+            return;
+        }
 
     }
 
@@ -87,12 +101,5 @@ public class ControllerAPI extends HttpHandler
         }
     }
 
-    private void invalidType() throws IOException
-    {
-        exchange.send(
-                new HttpResponse.Builder(HttpResponse.StatusCode.BadRequest)
-                .setContent("no such type")
-                .build()
-        );
-    }
+
 }

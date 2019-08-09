@@ -80,7 +80,7 @@
             </Location>
             <Size>
               <Width>175 px</Width>
-              <Height>144 px</Height>
+              <Height>161 px</Height>
             </Size>
             <DbOid>
               <Path>ApplicationServer.session_tokens</Path>
@@ -212,7 +212,7 @@
               <Port>
                 <Location>
                   <X>0 px</X>
-                  <Y>71.5 px</Y>
+                  <Y>79.9409722222222 px</Y>
                 </Location>
                 <Anchors>Top Bottom</Anchors>
                 <Align>Left</Align>
@@ -237,7 +237,7 @@
             <BendPoints>
               <PointD>
                 <X>510 px</X>
-                <Y>181.5 px</Y>
+                <Y>189.940972222222 px</Y>
               </PointD>
               <PointD>
                 <X>510 px</X>
@@ -261,7 +261,7 @@
               <Port xsi:type="LinkPort">
                 <Location>
                   <X>212 px</X>
-                  <Y>102 px</Y>
+                  <Y>110.440972222222 px</Y>
                 </Location>
                 <Anchors>None</Anchors>
                 <Align>Left</Align>
@@ -287,8 +287,8 @@
               <Y>-180 px</Y>
             </Location>
             <Size>
-              <Width>161 px</Width>
-              <Height>124 px</Height>
+              <Width>180 px</Width>
+              <Height>140 px</Height>
             </Size>
             <DbOid>
               <Path>ApplicationServer.verification_tokens</Path>
@@ -314,7 +314,7 @@
               <Port>
                 <Location>
                   <X>0 px</X>
-                  <Y>62 px</Y>
+                  <Y>70 px</Y>
                 </Location>
                 <Anchors>Top Bottom</Anchors>
                 <Align>Left</Align>
@@ -339,7 +339,7 @@
             <BendPoints>
               <PointD>
                 <X>53 px</X>
-                <Y>-118 px</Y>
+                <Y>-110 px</Y>
               </PointD>
             </BendPoints>
             <IsManuallyRouted>false</IsManuallyRouted>

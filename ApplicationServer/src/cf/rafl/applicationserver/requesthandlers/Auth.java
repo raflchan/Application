@@ -2,6 +2,7 @@ package cf.rafl.applicationserver.requesthandlers;
 
 import cf.rafl.applicationserver.core.security.Hasher;
 import cf.rafl.applicationserver.core.security.LoginCredentials;
+import cf.rafl.applicationserver.util.Responses;
 import cf.rafl.applicationserver.util.Settings;
 import cf.rafl.applicationserver.util.UtilDBRequest;
 import cf.rafl.http.core.HttpHandler;
@@ -63,7 +64,7 @@ public class Auth extends HttpHandler
 
             if (!UtilDBRequest.putSessionToken(login, sessionToken))
             {
-                internalServerError();
+                Responses.internalServerError(exchange);
                 return;
             }
 
@@ -86,7 +87,7 @@ public class Auth extends HttpHandler
         } catch (SQLException e)
         {
             logger.log(Level.WARNING, "", e);
-            internalServerError();
+            Responses.internalServerError(exchange);
         }
     }
 
@@ -119,14 +120,6 @@ public class Auth extends HttpHandler
         );
     }
 
-    private void internalServerError() throws IOException
-    {
-        exchange.send(
-                new HttpResponse.Builder(HttpResponse.StatusCode.InternalServerError)
-                        .setContent("Internal Server Error :(")
-                        .build()
-        );
-    }
 
     private void invalidCredentials() throws IOException
     {
