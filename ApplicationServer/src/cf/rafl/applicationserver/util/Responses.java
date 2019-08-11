@@ -11,7 +11,7 @@ public class Responses
     {
         exchange.send(
                 new HttpResponse.Builder(HttpResponse.StatusCode.InternalServerError)
-                        .setContent("Internal Server Error :(")
+                        .setContent("internal server error")
                         .build()
         );
     }
@@ -38,7 +38,34 @@ public class Responses
     {
         exchange.send(
                 new HttpResponse.Builder(HttpResponse.StatusCode.BadRequest)
-                        .setContent("Method not allowed")
+                        .setContent("method not allowed")
+                        .build()
+        );
+    }
+
+    public static void invalidVerificationToken(HttpExchange exchange) throws IOException
+    {
+        exchange.send(
+                new HttpResponse.Builder(HttpResponse.StatusCode.Unauthorized)
+                        .setContent("invalid verification token")
+                        .build()
+        );
+    }
+
+    public static void badFormat(HttpExchange exchange) throws IOException
+    {
+        exchange.send(
+                new HttpResponse.Builder(HttpResponse.StatusCode.BadRequest)
+                        .setContent("bad format")
+                        .build()
+        );
+    }
+
+    public void invalidCredentials(HttpExchange exchange) throws IOException
+    {
+        exchange.send(
+                new HttpResponse.Builder(HttpResponse.StatusCode.Unauthorized)
+                        .setContent("login failed due to incorrect username/password")
                         .build()
         );
     }

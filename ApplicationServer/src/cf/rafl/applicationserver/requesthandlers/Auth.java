@@ -60,7 +60,7 @@ public class Auth extends HttpHandler
 
             //  valid credentials
 
-            String sessionToken = generateNewSessionToken(login);
+            String sessionToken = generateNewSessionToken();
 
             if (!UtilDBRequest.putSessionToken(login, sessionToken))
             {
@@ -73,8 +73,6 @@ public class Auth extends HttpHandler
                             .setContent(sessionToken)
                             .build()
             );
-
-            clearExpiredSessionTokens(login.username);
 
         } catch (Settings.NoSuchSettingException | Settings.BadContentException e)
         {
@@ -91,12 +89,7 @@ public class Auth extends HttpHandler
         }
     }
 
-    private void clearExpiredSessionTokens(String username)
-    {
-        // TODO: 27.07.2019
-    }
-
-    private String generateNewSessionToken(LoginCredentials login)
+    private String generateNewSessionToken()
     {
         SecureRandom random = new SecureRandom();
         byte[] bytes = new byte[128];

@@ -50,7 +50,7 @@ public class Properties
         return props.getProperty(s);
     }
 
-    public class NoSuchPropertyException extends Exception
+    public static class NoSuchPropertyException extends Exception
     {
 
     }

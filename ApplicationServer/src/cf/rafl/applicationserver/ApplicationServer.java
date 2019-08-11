@@ -4,7 +4,6 @@ import cf.rafl.applicationserver.requesthandlers.Auth;
 import cf.rafl.applicationserver.core.Properties;
 import cf.rafl.applicationserver.requesthandlers.Register;
 import cf.rafl.applicationserver.requesthandlers.UserAPI;
-import cf.rafl.applicationserver.requesthandlers.ControllerAPI;
 import cf.rafl.applicationserver.util.Crash;
 import cf.rafl.http.core.HttpHandler;
 import cf.rafl.http.server.HttpsServer;
@@ -12,7 +11,6 @@ import cf.rafl.http.server.HttpsServer;
 
 public class ApplicationServer
 {
-
     private HttpsServer server;
 
     public ApplicationServer()
@@ -28,8 +26,6 @@ public class ApplicationServer
             server.createContext("/", new HttpHandler.DefaultHandler());
             server.createContext("/auth", new Auth());
             server.createContext("/register", new Register());
-
-            server.createContext("/controllerapi", new ControllerAPI());
             server.createContext("/userapi", new UserAPI());
 
         } catch (Properties.NoSuchPropertyException e)

@@ -1,6 +1,8 @@
 package cf.rafl.applicationserver.requesthandlers;
 
 
+import cf.rafl.applicationserver.core.exceptions.*;
+import cf.rafl.applicationserver.core.InterfaceAPI;
 import cf.rafl.applicationserver.util.Responses;
 import cf.rafl.applicationserver.util.UtilDBRequest;
 import cf.rafl.http.core.HttpHandler;
@@ -14,7 +16,7 @@ import java.sql.SQLException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class UserAPI extends HttpHandler
+public class UserAPI extends HttpHandler implements InterfaceAPI
 {
     private static Logger logger = Logger.getLogger(UserAPI.class.getName());
 
@@ -59,7 +61,7 @@ public class UserAPI extends HttpHandler
 
         try
         {
-            Method method = API.class.getMethod(type, this.getClass());
+            Method method = API.class.getMethod(type, InterfaceAPI.class);
             method.invoke(new API(), this);
 
         } catch (NoSuchMethodException e)
@@ -79,8 +81,12 @@ public class UserAPI extends HttpHandler
                 Responses.wrongMethod(exchange);
             else if(exception.equals(InvalidSessionTokenException.class))
                 Responses.invalidSessionToken(exchange);
-            else if (exception.equals(SQLException.class))
+            else if(exception.equals(InvalidVerificationTokenException.class))
+                Responses.invalidVerificationToken(exchange);
+            else if(exception.equals(SQLException.class))
                 Responses.internalServerError(exchange);
+            else if(exception.equals(BadFormatException.class))
+                Responses.badFormat(exchange);
             else
             {
                 Responses.internalServerError(exchange);
@@ -102,23 +108,22 @@ public class UserAPI extends HttpHandler
             throw new WrongMethodException();
     }
 
-    public void verifySessionToken() throws InvalidSessionTokenException, SQLException
+    public void verifySessionToken() throws InvalidSessionTokenException, SQLException, BadFormatException
     {
         if (!UtilDBRequest.validSessionToken(getSessionToken()))
             throw new InvalidSessionTokenException();
     }
 
-    public String getSessionToken() throws InvalidSessionTokenException
+    public String getSessionToken() throws BadFormatException
     {
-        String token = httpRequest.getField("cookie");
+        String token = httpRequest.getField("session-token");
 
         if (token == null)
-            throw new InvalidSessionTokenException();
+            throw new BadFormatException();
         return token;
     }
 
-
-    public String getUsername() throws SQLException, InvalidSessionTokenException
+    public String getUsername() throws SQLException, InvalidSessionTokenException, BadFormatException
     {
         return UtilDBRequest.getUserFromSessionToken(getSessionToken());
     }
@@ -133,13 +138,16 @@ public class UserAPI extends HttpHandler
         exchange.send(response);
     }
 
-    class WrongMethodException extends Exception
+    public void verifyVerificationToken() throws InvalidVerificationTokenException, BadFormatException, SQLException
     {
+        String token = httpRequest.getField("verification-token");
 
+        if(token == null)
+            throw new BadFormatException();
+        if(!UtilDBRequest.verificationTokenExists(token))
+            throw new InvalidVerificationTokenException();
     }
 
-    class InvalidSessionTokenException extends Exception
-    {
 
-    }
+
 }

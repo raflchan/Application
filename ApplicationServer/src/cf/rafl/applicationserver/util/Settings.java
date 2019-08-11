@@ -31,12 +31,12 @@ public class Settings
         return setting;
     }
 
-    public class NoSuchSettingException extends Exception
+    public static class NoSuchSettingException extends Exception
     {
 
     }
 
-    public class BadContentException extends Exception
+    public static class BadContentException extends Exception
     {
 
     }

@@ -68,12 +68,10 @@ public class Register extends HttpHandler
                             .setContent("bad content format")
                             .build()
             );
-            return;
         } catch (SQLException e)
         {
             logger.log(Level.WARNING, "", e);
             Responses.internalServerError(exchange);
-            return;
         }
     }
 

@@ -11,13 +11,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-// TODO: 07.08.2019 implement the expiries in here 
-// TODO: 10.08.2019 if db dead no repsonse
+// TODO: 10.08.2019 if db dead no response
 // TODO: 10.08.2019 dead db crashes server, bad!
 
 public class UtilDBRequest
 {
 
+    @SuppressWarnings("SpellCheckingInspection")
     private static char[] tokenChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".toCharArray();
 
     private static Database db = Database.getInstance();
