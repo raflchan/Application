@@ -2,6 +2,7 @@ package cf.rafl.applicationserver.requesthandlers;
 
 import cf.rafl.applicationserver.core.security.Hasher;
 import cf.rafl.applicationserver.core.security.LoginCredentials;
+import cf.rafl.applicationserver.util.Responses;
 import cf.rafl.applicationserver.util.Settings;
 import cf.rafl.applicationserver.util.UtilDBRequest;
 import cf.rafl.http.core.HttpHandler;
@@ -48,7 +49,7 @@ public class Register extends HttpHandler
             if (!UtilDBRequest. putUser(login, new Timestamp(created)))
             {
 
-                internalServerError();
+                Responses.internalServerError(exchange);
                 return;
             }
 
@@ -67,10 +68,12 @@ public class Register extends HttpHandler
                             .setContent("bad content format")
                             .build()
             );
+            return;
         } catch (SQLException e)
         {
             logger.log(Level.WARNING, "", e);
-            internalServerError();
+            Responses.internalServerError(exchange);
+            return;
         }
     }
 
@@ -89,12 +92,4 @@ public class Register extends HttpHandler
         exchange.send(response);
     }
 
-    private void internalServerError() throws IOException
-    {
-        exchange.send(
-                new HttpResponse.Builder(HttpResponse.StatusCode.InternalServerError)
-                        .setContent("Internal Server Error :(")
-                        .build()
-        );
-    }
 }

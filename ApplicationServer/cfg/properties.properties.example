@@ -3,3 +3,5 @@ keyStorePassword=
 databaseUrl=jdbc:mysql://localhost:3306/DatabaseName
 databaseUsername=
 databasePassword=
+verifyTokenExpiry=60
+sessionTokenExpiry=3600
