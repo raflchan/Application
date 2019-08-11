@@ -20,57 +20,17 @@ public class UserAPI extends HttpHandler
 
     private HttpRequest httpRequest;
 
+
     @Override
     protected void handlePOST(HttpRequest httpRequest) throws IOException
     {
-
-        this.httpRequest = httpRequest;
-        String type = httpRequest.getField("type");
-        String token = httpRequest.getField("cookie");
-        if(type == null || token == null)
-        {
-            exchange.send(
-                    new HttpResponse.Builder(HttpResponse.StatusCode.BadRequest)
-                            .setContent("specify type field")
-                            .build()
-            );
-            return;
-        }
-
-
-        try
-        {
-            if (!UtilDBRequest.validSessionToken(token))
-            {
-                Responses.invalidSessionToken(exchange);
-                return;
-            }
-
-            Method method = this.getClass().getDeclaredMethod(type);
-            method.invoke(this);
-
-        } catch (NoSuchMethodException e)
-        {
-            Responses.invalidType(exchange);
-            return;
-
-        } catch (IllegalAccessException | InvocationTargetException e)
-        {
-            Responses.internalServerError(exchange);
-            logger.log(Level.WARNING, "", e);
-            return;
-        } catch (SQLException e)
-        {
-            Responses.internalServerError(exchange);
-            return;
-        }
-
+        handle(httpRequest);
     }
 
     @Override
     protected void handleGET(HttpRequest httpRequest) throws IOException
     {
-        handleUNKNOWN(httpRequest);
+        handle(httpRequest);
     }
 
     @Override
@@ -83,12 +43,103 @@ public class UserAPI extends HttpHandler
         );
     }
 
-    private void getVerifyToken()
+    private void handle(HttpRequest httpRequest) throws IOException
     {
-        // TODO: 09.08.2019  
-        String token =
-        if()
+        this.httpRequest = httpRequest;
+        String type = httpRequest.getField("type");
+        if(type == null)
+        {
+            exchange.send(
+                    new HttpResponse.Builder(HttpResponse.StatusCode.BadRequest)
+                            .setContent("specify type field")
+                            .build()
+            );
+            return;
+        }
+
+        try
+        {
+            Method method = API.class.getMethod(type, this.getClass());
+            method.invoke(new API(), this);
+
+        } catch (NoSuchMethodException e)
+        {
+            Responses.invalidType(exchange);
+
+        } catch (IllegalAccessException e)
+        {
+            Responses.internalServerError(exchange);
+            logger.log(Level.WARNING, "", e);
+
+        } catch (InvocationTargetException e)
+        {
+            Class exception = e.getCause().getClass();
+
+            if(exception.equals(WrongMethodException.class))
+                Responses.wrongMethod(exchange);
+            else if(exception.equals(InvalidSessionTokenException.class))
+                Responses.invalidSessionToken(exchange);
+            else if (exception.equals(SQLException.class))
+                Responses.internalServerError(exchange);
+            else
+            {
+                Responses.internalServerError(exchange);
+                logger.log(Level.WARNING, "Unfiltered exception", e);
+            }
+
+        }
+    }
+
+    public void POST() throws WrongMethodException
+    {
+        if(httpRequest.method != HttpRequest.Method.POST)
+            throw new WrongMethodException();
+    }
+
+    public void GET() throws WrongMethodException
+    {
+        if(httpRequest.method != HttpRequest.Method.GET)
+            throw new WrongMethodException();
+    }
+
+    public void verifySessionToken() throws InvalidSessionTokenException, SQLException
+    {
+        if (!UtilDBRequest.validSessionToken(getSessionToken()))
+            throw new InvalidSessionTokenException();
+    }
+
+    public String getSessionToken() throws InvalidSessionTokenException
+    {
+        String token = httpRequest.getField("cookie");
+
+        if (token == null)
+            throw new InvalidSessionTokenException();
+        return token;
     }
 
 
+    public String getUsername() throws SQLException, InvalidSessionTokenException
+    {
+        return UtilDBRequest.getUserFromSessionToken(getSessionToken());
+    }
+
+    public String getUserFromSessionToken(String sessionToken) throws SQLException
+    {
+        return UtilDBRequest.getUserFromSessionToken(sessionToken);
+    }
+
+    public void send(HttpResponse response) throws IOException
+    {
+        exchange.send(response);
+    }
+
+    class WrongMethodException extends Exception
+    {
+
+    }
+
+    class InvalidSessionTokenException extends Exception
+    {
+
+    }
 }

@@ -33,4 +33,13 @@ public class Responses
                         .build()
         );
     }
+
+    public static void wrongMethod(HttpExchange exchange) throws IOException
+    {
+        exchange.send(
+                new HttpResponse.Builder(HttpResponse.StatusCode.BadRequest)
+                        .setContent("Method not allowed")
+                        .build()
+        );
+    }
 }
