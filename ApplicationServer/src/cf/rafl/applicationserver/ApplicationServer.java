@@ -1,6 +1,5 @@
 package cf.rafl.applicationserver;
 
-import cf.rafl.applicationserver.requesthandlers.Auth;
 import cf.rafl.applicationserver.core.Properties;
 import cf.rafl.applicationserver.requesthandlers.Register;
 import cf.rafl.applicationserver.requesthandlers.UserAPI;
@@ -24,7 +23,6 @@ public class ApplicationServer
             server = builder.build();
 
             server.createContext("/", new HttpHandler.DefaultHandler());
-            server.createContext("/auth", new Auth());
             server.createContext("/register", new Register());
             server.createContext("/userapi", new UserAPI());
 

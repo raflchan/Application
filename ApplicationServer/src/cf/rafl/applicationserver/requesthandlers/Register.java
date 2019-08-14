@@ -1,7 +1,7 @@
 package cf.rafl.applicationserver.requesthandlers;
 
 import cf.rafl.applicationserver.core.security.Hasher;
-import cf.rafl.applicationserver.core.security.LoginCredentials;
+import cf.rafl.applicationserver.core.structs.LoginCredentials;
 import cf.rafl.applicationserver.util.Responses;
 import cf.rafl.applicationserver.util.Settings;
 import cf.rafl.applicationserver.util.UtilDBRequest;
@@ -49,7 +49,7 @@ public class Register extends HttpHandler
             if (!UtilDBRequest. putUser(login, new Timestamp(created)))
             {
 
-                Responses.internalServerError(exchange);
+                Responses.internalServerError(exchange, null);
                 return;
             }
 
@@ -71,7 +71,7 @@ public class Register extends HttpHandler
         } catch (SQLException e)
         {
             logger.log(Level.WARNING, "", e);
-            Responses.internalServerError(exchange);
+            Responses.internalServerError(exchange, e);
         }
     }
 

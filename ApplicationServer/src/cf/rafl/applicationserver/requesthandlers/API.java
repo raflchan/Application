@@ -2,6 +2,8 @@ package cf.rafl.applicationserver.requesthandlers;
 
 import cf.rafl.applicationserver.core.exceptions.*;
 import cf.rafl.applicationserver.core.InterfaceAPI;
+import cf.rafl.applicationserver.core.security.Hasher;
+import cf.rafl.applicationserver.core.structs.LoginCredentials;
 import cf.rafl.applicationserver.util.UtilDBRequest;
 import cf.rafl.http.core.HttpResponse;
 import com.google.gson.Gson;
@@ -45,7 +47,7 @@ public class API
         );
     }
 
-    public void verifyVerificationToken(InterfaceAPI api)
+    public static void verifyVerificationToken(InterfaceAPI api)
             throws WrongMethodException, InvalidVerificationTokenException, IOException, SQLException, BadFormatException
     {
         api.GET();
@@ -58,10 +60,31 @@ public class API
         );
     }
 
-    public void login(InterfaceAPI api)
-            throws WrongMethodException
+    public static void login(InterfaceAPI api)
+            throws WrongMethodException, BadFormatException, SQLException, InvalidCredentialsException, IOException
     {
         api.POST();
+
+        LoginCredentials login = api.getLogin();
+
+        if (!UtilDBRequest.userExists(login.username))
+            throw new InvalidCredentialsException();
+
+        long creationDate = UtilDBRequest.getCreationDate(login.username);
+        String generatedHash = Hasher.generatePasswordHash(login, creationDate);
+        String storedHash = UtilDBRequest.getPasswordHash(login.username);
+
+        if(!storedHash.equals(generatedHash))
+            throw new InvalidCredentialsException();
+
+        String sessionToken = UtilDBRequest.createSessionToken(login);
+
+        api.send(
+                new HttpResponse.Builder(HttpResponse.StatusCode.OK)
+                .setContent(sessionToken)
+                .build()
+        );
+
         // TODO: 12.08.2019 PRIORITY
     }
 }

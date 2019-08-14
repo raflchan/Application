@@ -3,7 +3,9 @@ package cf.rafl.applicationserver.requesthandlers;
 
 import cf.rafl.applicationserver.core.exceptions.*;
 import cf.rafl.applicationserver.core.InterfaceAPI;
+import cf.rafl.applicationserver.core.structs.LoginCredentials;
 import cf.rafl.applicationserver.util.Responses;
+import cf.rafl.applicationserver.util.Settings;
 import cf.rafl.applicationserver.util.UtilDBRequest;
 import cf.rafl.http.core.HttpHandler;
 import cf.rafl.http.core.HttpRequest;
@@ -13,6 +15,7 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.sql.SQLException;
+import java.util.ResourceBundle;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -70,7 +73,7 @@ public class UserAPI extends HttpHandler implements InterfaceAPI
 
         } catch (IllegalAccessException e)
         {
-            Responses.internalServerError(exchange);
+            Responses.internalServerError(exchange, e);
             logger.log(Level.WARNING, "", e);
 
         } catch (InvocationTargetException e)
@@ -84,12 +87,16 @@ public class UserAPI extends HttpHandler implements InterfaceAPI
             else if(exception.equals(InvalidVerificationTokenException.class))
                 Responses.invalidVerificationToken(exchange);
             else if(exception.equals(SQLException.class))
-                Responses.internalServerError(exchange);
+                Responses.internalServerError(exchange,e );
             else if(exception.equals(BadFormatException.class))
                 Responses.badFormat(exchange);
+            else if(exception.equals(InvalidCredentialsException.class))
+                Responses.invalidCredentials(exchange);
+            else if(exception.equals(IOException.class))
+                Responses.internalServerError(exchange, e);
             else
             {
-                Responses.internalServerError(exchange);
+                Responses.internalServerError(exchange, e);
                 logger.log(Level.WARNING, "Unfiltered exception", e);
             }
 
@@ -123,7 +130,7 @@ public class UserAPI extends HttpHandler implements InterfaceAPI
         return token;
     }
 
-    public String getUsername() throws SQLException, InvalidSessionTokenException, BadFormatException
+    public String getUsername() throws SQLException, BadFormatException
     {
         return UtilDBRequest.getUserFromSessionToken(getSessionToken());
     }
@@ -144,10 +151,28 @@ public class UserAPI extends HttpHandler implements InterfaceAPI
 
         if(token == null)
             throw new BadFormatException();
-        if(!UtilDBRequest.verificationTokenExists(token))
+        if(!UtilDBRequest.validVerificationToken(token))
             throw new InvalidVerificationTokenException();
     }
 
+    @Override
+    public LoginCredentials getLogin() throws BadFormatException
+    {
+        try
+        {
+            Settings settings = new Settings(exchange.getRequest().content);
+
+
+            return new LoginCredentials(
+                    settings.getSetting("username"),
+                    settings.getSetting("password"),
+                    exchange.getRemoteAddress()
+            );
+        } catch (Settings.BadContentException | Settings.NoSuchSettingException e)
+        {
+            throw new BadFormatException();
+        }
+    }
 
 
 }

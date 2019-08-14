@@ -1,6 +1,7 @@
 package cf.rafl.applicationserver.core;
 
 import cf.rafl.applicationserver.core.exceptions.*;
+import cf.rafl.applicationserver.core.structs.LoginCredentials;
 import cf.rafl.http.core.HttpResponse;
 
 import java.io.IOException;
@@ -18,4 +19,6 @@ public interface InterfaceAPI
     void send(HttpResponse build)  throws IOException;
 
     void verifyVerificationToken() throws InvalidVerificationTokenException, BadFormatException, SQLException;
+
+    LoginCredentials getLogin() throws BadFormatException;
 }

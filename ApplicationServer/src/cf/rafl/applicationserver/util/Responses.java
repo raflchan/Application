@@ -4,11 +4,18 @@ import cf.rafl.http.core.HttpResponse;
 import cf.rafl.http.server.HttpExchange;
 
 import java.io.IOException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class Responses
 {
-    public static void internalServerError(HttpExchange exchange) throws IOException
+    private static Logger logger = Logger.getLogger(Responses.class.getName());
+
+    public static void internalServerError(HttpExchange exchange, Exception e) throws IOException
     {
+        if(e != null)
+            logger.log(Level.WARNING, "", e);
+
         exchange.send(
                 new HttpResponse.Builder(HttpResponse.StatusCode.InternalServerError)
                         .setContent("internal server error")
@@ -61,11 +68,11 @@ public class Responses
         );
     }
 
-    public void invalidCredentials(HttpExchange exchange) throws IOException
+    public static void invalidCredentials(HttpExchange exchange) throws IOException
     {
         exchange.send(
                 new HttpResponse.Builder(HttpResponse.StatusCode.Unauthorized)
-                        .setContent("login failed due to incorrect username/password")
+                        .setContent("invalid username/password")
                         .build()
         );
     }
