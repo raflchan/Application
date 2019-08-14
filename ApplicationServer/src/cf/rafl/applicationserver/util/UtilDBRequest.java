@@ -96,7 +96,7 @@ public class UtilDBRequest
         throw new SQLException();
     }
 
-    public static boolean putUser(LoginCredentials login, Timestamp created) throws SQLException
+    public static void putUser(LoginCredentials login, Timestamp created) throws SQLException
     {
         PreparedStatement statement =
                 db.preparedStatement("INSERT INTO users (Username, Password, Created) VALUES (?, ?, ?)");
@@ -104,8 +104,8 @@ public class UtilDBRequest
         statement.setString(2, login.password);
         statement.setTimestamp(3, created);
 
-
-        return statement.executeUpdate() == 1;
+        if(statement.executeUpdate() != 1)
+            throw new SQLException();
     }
 
     public static boolean validVerificationToken(String verificationToken) throws SQLException

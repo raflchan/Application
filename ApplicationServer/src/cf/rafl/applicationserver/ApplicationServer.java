@@ -1,8 +1,7 @@
 package cf.rafl.applicationserver;
 
 import cf.rafl.applicationserver.core.Properties;
-import cf.rafl.applicationserver.requesthandlers.Register;
-import cf.rafl.applicationserver.requesthandlers.UserAPI;
+import cf.rafl.applicationserver.requesthandlers.API;
 import cf.rafl.applicationserver.util.Crash;
 import cf.rafl.http.core.HttpHandler;
 import cf.rafl.http.server.HttpsServer;
@@ -23,8 +22,7 @@ public class ApplicationServer
             server = builder.build();
 
             server.createContext("/", new HttpHandler.DefaultHandler());
-            server.createContext("/register", new Register());
-            server.createContext("/userapi", new UserAPI());
+            server.createContext("/api", new API());
 
         } catch (Properties.NoSuchPropertyException e)
         {

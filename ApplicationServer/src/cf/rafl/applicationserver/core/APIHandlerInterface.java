@@ -7,7 +7,7 @@ import cf.rafl.http.core.HttpResponse;
 import java.io.IOException;
 import java.sql.SQLException;
 
-public interface InterfaceAPI
+public interface APIHandlerInterface
 {
     void GET() throws WrongMethodException;
     void POST() throws WrongMethodException;

@@ -76,4 +76,13 @@ public class Responses
                         .build()
         );
     }
+
+    public static void usernameTaken(HttpExchange exchange) throws IOException
+    {
+        exchange.send(
+                new HttpResponse.Builder(HttpResponse.StatusCode.UnprocessableEntity)
+                        .setContent("username taken")
+                        .build()
+        );
+    }
 }
