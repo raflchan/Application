@@ -1,5 +1,6 @@
 package cf.rafl.applicationserver.core.security;
 
+import cf.rafl.applicationserver.core.structs.LoginCredentials;
 import cf.rafl.applicationserver.util.Crash;
 
 import javax.crypto.SecretKeyFactory;

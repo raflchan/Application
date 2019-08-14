@@ -2,22 +2,24 @@ package cf.rafl.applicationserver.util;
 
 import cf.rafl.applicationserver.core.Constants;
 import cf.rafl.applicationserver.core.Database;
-import cf.rafl.applicationserver.core.security.LoginCredentials;
+import cf.rafl.applicationserver.core.structs.LoginCredentials;
 import cf.rafl.applicationserver.core.structs.Microcontroller;
 
 import java.security.SecureRandom;
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Random;
 
-// TODO: 07.08.2019 implement the expiries in here 
-// TODO: 10.08.2019 if db dead no repsonse
+// TODO: 10.08.2019 if db dead no response
 // TODO: 10.08.2019 dead db crashes server, bad!
+// TODO: 14.08.2019 sanitize input
 
 public class UtilDBRequest
 {
 
+    @SuppressWarnings("SpellCheckingInspection")
     private static char[] tokenChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".toCharArray();
 
     private static Database db = Database.getInstance();
@@ -69,8 +71,18 @@ public class UtilDBRequest
         throw new SQLException();
     }
 
-    public static boolean putSessionToken(LoginCredentials login, String sessionToken) throws SQLException
+    public static String createSessionToken(LoginCredentials login) throws SQLException
     {
+        String sessionToken;
+        do
+        {
+            SecureRandom random = new SecureRandom();
+            byte[] bytes = new byte[128];
+            random.nextBytes(bytes);
+            sessionToken = Base64.getEncoder().encodeToString(bytes);
+
+        } while (validSessionToken(sessionToken));
+
         PreparedStatement statement =
                 db.preparedStatement("INSERT INTO session_tokens (Token, FK_User, Created, Expires, Address) VALUES (?, ?, ?, ?, ?)");
         statement.setString(1, sessionToken);
@@ -79,10 +91,12 @@ public class UtilDBRequest
         statement.setTimestamp(4, new Timestamp(System.currentTimeMillis() + Constants.sessionTokenExpiry()));
         statement.setString(5, login.ip);
 
-        return statement.executeUpdate() == 1;
+        if(statement.executeUpdate() == 1)
+            return sessionToken;
+        throw new SQLException();
     }
 
-    public static boolean putUser(LoginCredentials login, Timestamp created) throws SQLException
+    public static void putUser(LoginCredentials login, Timestamp created) throws SQLException
     {
         PreparedStatement statement =
                 db.preparedStatement("INSERT INTO users (Username, Password, Created) VALUES (?, ?, ?)");
@@ -90,11 +104,11 @@ public class UtilDBRequest
         statement.setString(2, login.password);
         statement.setTimestamp(3, created);
 
-
-        return statement.executeUpdate() == 1;
+        if(statement.executeUpdate() != 1)
+            throw new SQLException();
     }
 
-    public static boolean verificationTokenExists(String verificationToken) throws SQLException
+    public static boolean validVerificationToken(String verificationToken) throws SQLException
     {
         PreparedStatement statement =
                 db.preparedStatement("DELETE FROM verification_tokens WHERE Token = ? AND Expires <= CURRENT_TIMESTAMP()");
